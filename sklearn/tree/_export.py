@@ -212,6 +212,7 @@ class _BaseTreeExporter:
         self.rounded = rounded
         self.precision = precision
         self.fontsize = fontsize
+        self.class_weight = class_weight
 
     def get_color(self, value):
         # Find the appropriate color & intensity for a node
@@ -268,7 +269,16 @@ class _BaseTreeExporter:
         else:
             value = tree.value[node_id]
 
+        temp = value.copy()	
+        real_value = temp.copy()	
+        	
+        i = 0	
+        while i < len(value):	
+            real_value[i] = value[i]/self.class_weight[i]	
+            i += 1
+            
         # Should labels be shown?
+        
         labels = (self.label == 'root' and node_id == 0) or self.label == 'all'
 
         characters = self.characters
@@ -325,20 +335,21 @@ class _BaseTreeExporter:
         if self.proportion and tree.n_classes[0] != 1:
             # For classification this will show the proportion of samples
             value = value / tree.weighted_n_node_samples[node_id]
+            real_value = real_value / tree.n_node_samples[node_id]
         if labels:
             node_string += 'value = '
         if tree.n_classes[0] == 1:
             # Regression
-            value_text = np.around(value, self.precision)
+            value_text = np.around(real_value, self.precision)
         elif self.proportion:
             # Classification
-            value_text = np.around(value, self.precision)
-        elif np.all(np.equal(np.mod(value, 1), 0)):
+            value_text = np.around(real_value, self.precision)
+        elif np.all(np.equal(np.mod(real_value, 1), 0)):
             # Classification without floating-point weights
-            value_text = value.astype(int)
+            value_text = real_value.astype(int)
         else:
             # Classification with floating-point weights
-            value_text = np.around(value, self.precision)
+            value_text = np.around(real_value, self.precision)
         # Strip whitespace
         value_text = str(value_text.astype('S32')).replace("b'", "'")
         value_text = value_text.replace("' '", ", ").replace("'", "")
@@ -380,7 +391,7 @@ class _DOTTreeExporter(_BaseTreeExporter):
             max_depth=max_depth, feature_names=feature_names,
             class_names=class_names, label=label, filled=filled,
             impurity=impurity, node_ids=node_ids, proportion=proportion,
-            rotate=rotate, rounded=rounded, precision=precision)
+            rotate=rotate, rounded=rounded, precision=precision, class_weight = class_weight)
         self.leaves_parallel = leaves_parallel
         self.out_file = out_file
         self.special_characters = special_characters
@@ -671,7 +682,7 @@ def export_graphviz(decision_tree, out_file=None, *, max_depth=None,
                     filled=False, leaves_parallel=False, impurity=True,
                     node_ids=False, proportion=False, rotate=False,
                     rounded=False, special_characters=False, precision=3,
-                    fontname='helvetica'):
+                    fontname='helvetica', class_weight = "balanced"):
     """Export a decision tree in DOT format.
 
     This function generates a GraphViz representation of the decision tree,
@@ -790,7 +801,7 @@ def export_graphviz(decision_tree, out_file=None, *, max_depth=None,
             filled=filled, leaves_parallel=leaves_parallel, impurity=impurity,
             node_ids=node_ids, proportion=proportion, rotate=rotate,
             rounded=rounded, special_characters=special_characters,
-            precision=precision, fontname=fontname)
+            precision=precision, fontname=fontname, class_weight = class_weight)
         exporter.export(decision_tree)
 
         if return_string:
